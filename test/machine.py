@@ -41,11 +41,21 @@ class Machine(object):
             f.write(host)
 
     def set_config(self, interface, **config):
+        iface_dir = interface.replace('.', '_')
         play = {
-                'hosts': 'system-api-test',
-                'become': True,
-                'roles': [ dict(role=interface.replace('.', '_'), **config) ]
+            'hosts': 'system-api-test',
+            'become': True,
+            'roles': [dict(role=iface_dir, **config)]
         }
+
+        testbook_path = os.path.join(self.rolesdir, iface_dir, 'test',
+                                     'main.yml')
+        if os.path.exists(testbook_path):
+            play['post_tasks'] = [{
+                'include': testbook_path,
+                'vars': config
+            }]
+
         playbook = [ play ]
 
         playbook_file = os.path.join(self.workdir, 'test.yml')

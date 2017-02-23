@@ -1,0 +1,39 @@
+- name: Check if tuned enabled and running
+  service:
+    name: tuned
+    enabled: yes
+    state: started
+  check_mode: yes
+  register: service_status
+
+- fail:
+    msg: "Service tuned is not enabled or running"
+  when: service_status.changed
+
+- name: Get active profile
+  command: tuned-adm active
+  register: active
+
+# extract profile name
+- set_fact:
+    active_profile: "{{ active.stdout | regex_replace('^.*\\: (.*)$', '\\1') }}"
+
+# compare expected and active profiles only if use_recommended_profile is not used
+- assert:
+    that: profile == active_profile
+    msg: "AssertionError {{ profile }} != {{ active_profile }}"
+  when:
+    - use_recommended_profile is undefined
+
+# use_recommended_profile is used, get the recommended profile and compare
+- block:
+    - name: Get recommended profile
+      command: tuned-adm recommend
+      register: recommend
+
+    - assert:
+        that: recommend.stdout == active_profile
+        msg: "AssertionError {{ recommend.stdout }} != {{ active_profile }}"
+  when:
+    - use_recommended_profile is defined
+    - use_recommended_profile
