@@ -18,12 +18,16 @@
 - set_fact:
     active_profile: "{{ active.stdout | regex_replace('^.*\\: (.*)$', '\\1') }}"
 
+# if profile is undefined use api default
+- set_fact:
+    profile: balanced
+  when: profile is undefined
+
 # compare expected and active profiles only if use_recommended_profile is not used
 - assert:
     that: profile == active_profile
     msg: "AssertionError {{ profile }} != {{ active_profile }}"
-  when:
-    - use_recommended_profile is undefined
+  when: use_recommended_profile is undefined
 
 # use_recommended_profile is used, get the recommended profile and compare
 - block:
