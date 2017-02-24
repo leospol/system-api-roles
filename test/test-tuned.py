@@ -1,7 +1,4 @@
-
 import machine
-import re
-from avocado.utils import process
 
 
 class TestTuned(machine.Test):
