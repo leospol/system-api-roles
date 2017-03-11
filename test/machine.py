@@ -40,7 +40,7 @@ class Machine(object):
         with open(self.inventory_file, 'w') as f:
             f.write(host)
 
-    def set_config(self, interface, **config):
+    def set_config(self, interface, test_tasks_file=None, **config):
         iface_dir = interface.replace('.', '_')
         play = {
             'hosts': 'system-api-test',
@@ -48,9 +48,9 @@ class Machine(object):
             'roles': [dict(role=iface_dir, **config)]
         }
 
-        testbook_path = os.path.join(self.rolesdir, iface_dir, 'test',
-                                     'main.yml')
-        if os.path.exists(testbook_path):
+        if test_tasks_file:
+            testbook_path = os.path.join(self.rolesdir, iface_dir, 'test',
+                                         test_tasks_file)
             play['post_tasks'] = [{
                 'include': testbook_path,
                 'vars': config
