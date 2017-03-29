@@ -10,34 +10,76 @@
     msg: "Service tuned is not enabled or running"
   when: service_status.changed
 
+# legacy tuned-adm does not have recommend command
+- name: Get recommended profile
+  command: tuned-adm recommend
+  register: recommend
+  ignore_errors: yes
+
+- name: Set legacy value
+  set_fact:
+    legacy: "{{ recommend.rc != 0 }}"
+
 - name: Get active profile
   command: tuned-adm active
   register: active
 
-# extract profile name
-- set_fact:
-    active_profile: "{{ active.stdout | regex_replace('^.*\\: (.*)$', '\\1') }}"
+- name: Extract profile name
+  set_fact:
+    active_profile: "{{ active.stdout_lines[0] | regex_replace('^.*\\: (.*)$', '\\1') }}"
 
-# if profile is undefined use api default
-- set_fact:
+- name: if profile is undefined use api default
+  set_fact:
     profile: balanced
   when: profile is undefined
 
-# compare expected and active profiles only if use_recommended_profile is not used
-- assert:
-    that: profile == active_profile
-    msg: "AssertionError {{ profile }} != {{ active_profile }}"
-  when: use_recommended_profile is undefined
-
-# use_recommended_profile is used, get the recommended profile and compare
+# non-legacy block
 - block:
-    - name: Get recommended profile
-      command: tuned-adm recommend
-      register: recommend
+  - name: Compare expected and active profiles only if use_recommended_profile is not used
+    assert:
+      that: profile == active_profile
+      msg: "AssertionError {{ profile }} != {{ active_profile }}"
+    when:
+      - use_recommended_profile is undefined or not use_recommended_profile
 
-    - assert:
-        that: recommend.stdout == active_profile
-        msg: "AssertionError {{ recommend.stdout }} != {{ active_profile }}"
-  when:
+  - name: When use_recommended_profile is used, get the recommended profile and compare
+    assert:
+      that: recommend.stdout == active_profile
+      msg: "AssertionError {{ recommend.stdout }} != {{ active_profile }}"
+    when:
     - use_recommended_profile is defined
     - use_recommended_profile
+  when: not legacy
+
+# legacy block
+- block:
+  # make a copy
+  - set_fact:
+      profile_1: "{{ profile }}"
+
+  # remap new to legacy profiles
+  - name: balanced -> default
+    set_fact:
+      profile_1: default
+    when: profile == "balanced"
+
+  - name: powersave -> server-powersave
+    set_fact:
+      profile_1: server-powersave
+    when: profile == "powersave"
+
+  - name: Compare expected and active profiles only if use_recommended_profile is not used
+    assert:
+      that: profile_1 == active_profile
+      msg: "AssertionError {{ profile_1 }} != {{ active_profile }}"
+    when:
+      - use_recommended_profile is undefined or not use_recommended_profile
+
+  - name: When use_recommended_profile is used, get the recommended profile and compare
+    assert:
+      that: "'default' == active_profile"
+      msg: "AssertionError default != {{ active_profile }}"
+    when:
+    - use_recommended_profile is defined
+    - use_recommended_profile
+  when: legacy
