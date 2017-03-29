@@ -9,7 +9,7 @@ class TestTuned(machine.Test):
 
     def test(self):
         for profile in ('balanced', 'powersave', 'throughput-performance',
-                        'latency-performance'):
+                        'latency-performance', 'virtual-guest', 'virtual-host'):
             self.machine.set_config('com.redhat.tuned', profile=profile,
                                     test_tasks_file='main.yml')
 
